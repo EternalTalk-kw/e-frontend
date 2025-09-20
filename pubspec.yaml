@@ -31,3 +31,4 @@ flutter:
   assets:
     - assets/images/logo.png          # 무한대 로고
     - assets/images/text_logo.png     # EternalTalk 글씨
+    - assets/images/logo_text.png

@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/auth_repository.dart';
-import '../../features/memory/memory_repository.dart'; // ✅ 프로필 존재 여부 확인
 import '../../core/api_result.dart';
+import '../../core/dio_client.dart';       // ✅ 로그인 후 인터셉터 갱신
+import '../../core/secure_storage.dart';  // ✅ 토큰 직접 저장 시 사용(필요 시)
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,11 +31,13 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
 
     try {
+      // 1) 로그인 요청
       final res = await authRepository.login(
         email: _email.text.trim(),
         password: _password.text,
       );
 
+      // 2) 실패 처리
       if (res is ApiFailure) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -43,16 +46,21 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // ✅ 로그인 성공 → 프로필 존재 여부 확인 후 분기
-      final hp = await memoryRepository.hasProfile();
-      final has = hp is ApiSuccess<bool> ? (hp.data == true) : false;
+      // 3) (옵션) 토큰이 ApiSuccess 페이로드로 내려온 경우, 직접 저장
+      //    - authRepository.login 내부에서 이미 저장한다면 이 블록은 생략돼도 OK
+      // if (res is ApiSuccess<Map<String, dynamic>>) {
+      //   final token = res.data['accessToken']?.toString();
+      //   if (token != null && token.isNotEmpty) {
+      //     await AppSecureStorage.writeAccessToken(token);
+      //   }
+      // }
 
+      // 4) 인터셉터 갱신(Authorization 자동 부착)
+      await DioClient.I.refreshAuthInterceptor();
+
+      // 5) 분기는 Gate에서: 토큰 유무/프로필 유무로 '/' 또는 '/intro2' 또는 '/login'
       if (!mounted) return;
-      if (has) {
-        context.go('/');         // 이미 프로필 있음 → 홈
-      } else {
-        context.go('/intro2');   // 프로필 없음 → 온보딩(인트로2)
-      }
+      context.go('/gate');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,16 +72,22 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _googleLogin() async {
-    // ✅ 레포의 startGoogleLogin 사용 (웹이면 현재 탭으로 열림)
+    // 웹/모바일 각각 구현에 맞춘 시작 함수
     final res = await authRepository.startGoogleLogin();
     if (res is ApiFailure) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('구글 로그인 시작 실패: ${res.message}')),
       );
+      return;
     }
-    // 성공(ApiSuccess<void>) 시에는 브라우저로 넘어가므로 여기서 추가 라우팅 없음.
-    // 콜백 처리 후 앱으로 돌아오면 동일하게 hasProfile 분기 로직을 적용해 주세요.
+
+    // OAuth 콜백에서 토큰 수신 후:
+    // 1) AppSecureStorage.writeAccessToken(token)
+    // 2) await DioClient.I.refreshAuthInterceptor();
+    // 3) context.go('/gate');
+    //
+    // ※ 위 1~3은 콜백 처리 코드에서 수행해주세요.
   }
 
   @override
