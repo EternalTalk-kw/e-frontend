@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/auth_repository.dart';
+import '../../features/memory/memory_repository.dart'; // ✅ 프로필 존재 여부 확인
 import '../../core/api_result.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -19,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    // ✅ 리소스 정리
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -28,20 +28,30 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _doLogin() async {
     if (_loading) return;
     setState(() => _loading = true);
+
     try {
       final res = await authRepository.login(
         email: _email.text.trim(),
         password: _password.text,
       );
 
-      if (res is ApiSuccess<void>) {
-        if (!mounted) return;
-        context.go('/'); // 홈으로 이동
-      } else if (res is ApiFailure) {
+      if (res is ApiFailure) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(res.message)),
         );
+        return;
+      }
+
+      // ✅ 로그인 성공 → 프로필 존재 여부 확인 후 분기
+      final hp = await memoryRepository.hasProfile();
+      final has = hp is ApiSuccess<bool> ? (hp.data == true) : false;
+
+      if (!mounted) return;
+      if (has) {
+        context.go('/');         // 이미 프로필 있음 → 홈
+      } else {
+        context.go('/intro2');   // 프로필 없음 → 온보딩(인트로2)
       }
     } catch (e) {
       if (!mounted) return;
@@ -62,12 +72,12 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(content: Text('구글 로그인 시작 실패: ${res.message}')),
       );
     }
-    // 성공(ApiSuccess<void>)인 경우는 브라우저 이동만 일어나므로 별도 처리 없음
+    // 성공(ApiSuccess<void>) 시에는 브라우저로 넘어가므로 여기서 추가 라우팅 없음.
+    // 콜백 처리 후 앱으로 돌아오면 동일하게 hasProfile 분기 로직을 적용해 주세요.
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -75,8 +85,6 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           children: [
             const SizedBox(height: 48),
-
-            // 상단 텍스트 로고
             Center(
               child: Image.asset(
                 'assets/images/text_logo.png',
@@ -86,7 +94,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 56),
 
-            // 이메일
             TextField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
@@ -104,7 +111,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 24),
 
-            // 비밀번호
             TextField(
               controller: _password,
               obscureText: true,
@@ -121,7 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
-            // 오른쪽 '회원가입' 버튼
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -131,7 +136,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 8),
 
-            // 로그인 버튼
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -149,7 +153,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 구글 로그인 버튼
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(

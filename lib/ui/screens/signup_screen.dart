@@ -16,7 +16,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _nickname = TextEditingController();
   final _password = TextEditingController();
 
-  bool _agreed = false;
   bool _loading = false;
 
   @override
@@ -29,28 +28,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _submit() async {
     if (_loading) return;
-    if (!_agreed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('디지털 유산 사용 동의서에 동의해 주세요.')),
-      );
-      return;
-    }
+
     setState(() => _loading = true);
     try {
-      // 회원가입
+      // ✅ 회원가입만 수행
       final signUpRes = await authRepository.signup(
         email: _email.text.trim(),
         nickname: _nickname.text.trim(),
         password: _password.text,
       );
       if (signUpRes is ApiFailure) {
-        throw (signUpRes as ApiFailure).message;
-      }
-
-      // 동의서 제출
-      final consentRes = await authRepository.submitConsent(agreed: true);
-      if (consentRes is ApiFailure) {
-        throw (consentRes as ApiFailure).message;
+        throw signUpRes.message;
       }
 
       if (!mounted) return;
@@ -67,42 +55,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  void _showPolicy() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF161616),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            SizedBox(height: 8),
-            Text(
-              '디지털 유산 사용 동의서',
-              style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            SizedBox(height: 12),
-            Text(
-              '• 고인의 목소리/영상/텍스트를 기반으로 한 디지털 콘텐츠 생성 및 제공에 동의합니다.\n'
-                  '• 관련 데이터의 처리 및 보관에 동의합니다.\n'
-                  '• 서비스 약관 및 개인정보 처리방침을 확인했습니다.',
-              style: TextStyle(color: Colors.white70, height: 1.5),
-            ),
-            SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // const로 두면 변수 참조 불가 → 변수로 선언
-    final inputBorder = UnderlineInputBorder(
+    final inputBorder = const UnderlineInputBorder(
       borderSide: BorderSide(color: Colors.white24),
     );
 
@@ -113,7 +68,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           children: [
-            // 상단 텍스트 로고(선택)
             Center(
               child: Image.asset('assets/images/text_logo.png', width: 160),
             ),
@@ -123,11 +77,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
               controller: _email,
               keyboardType: TextInputType.emailAddress,
               style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Email',
-                labelStyle: const TextStyle(color: Colors.white70),
-                enabledBorder: inputBorder,
-                focusedBorder: const UnderlineInputBorder(
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: UnderlineInputBorder(
                   borderSide: BorderSide(color: Colors.white54),
                 ),
               ),
@@ -137,11 +93,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
             TextField(
               controller: _nickname,
               style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Nickname',
-                labelStyle: const TextStyle(color: Colors.white70),
-                enabledBorder: inputBorder,
-                focusedBorder: const UnderlineInputBorder(
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: UnderlineInputBorder(
                   borderSide: BorderSide(color: Colors.white54),
                 ),
               ),
@@ -152,43 +110,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
               controller: _password,
               obscureText: true,
               style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Password',
-                labelStyle: const TextStyle(color: Colors.white70),
-                enabledBorder: inputBorder,
-                focusedBorder: const UnderlineInputBorder(
+                labelStyle: TextStyle(color: Colors.white70),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: UnderlineInputBorder(
                   borderSide: BorderSide(color: Colors.white54),
                 ),
               ),
             ),
             const SizedBox(height: 28),
-
-            // 동의 체크박스 + 보기
-            Row(
-              children: [
-                Checkbox(
-                  value: _agreed,
-                  onChanged: (v) => setState(() => _agreed = v ?? false),
-                  fillColor: MaterialStateProperty.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
-                        ? const Color(0xFFBFA9FF)
-                        : Colors.white24,
-                  ),
-                  checkColor: Colors.black,
-                ),
-                const Expanded(
-                  child: Text(
-                    '디지털 유산 사용 동의서에 동의합니다.',
-                    style: TextStyle(color: Colors.white, fontSize: 13),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _showPolicy,
-                  child: const Text('동의서 보기', style: TextStyle(fontSize: 12)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
 
             SizedBox(
               width: double.infinity,
