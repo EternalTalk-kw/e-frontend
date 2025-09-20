@@ -38,3 +38,5 @@ class ChatRepository {
     }
   }
 }
+
+final chatRepository = ChatRepository();
