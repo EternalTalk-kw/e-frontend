@@ -23,6 +23,7 @@ class ChatRepository {
   Future<ApiResult<Map<String, dynamic>>> send(String text) async {
     try {
       final res = await _dio.post('/api/chat/send', data: {'text': text});
+      // 백엔드 응답: { reply, remainingCharsToday }
       return ApiSuccess(Map<String, dynamic>.from(res.data));
     } on DioException catch (e) {
       return ApiFailure(e.response?.data?['message']?.toString() ?? '전송 실패');
@@ -32,7 +33,8 @@ class ChatRepository {
   Future<ApiResult<int>> quota() async {
     try {
       final res = await _dio.get('/api/chat/quota');
-      return ApiSuccess(res.data['remaining'] as int? ?? 0);
+      final remain = res.data['remainingCharsToday'] as int? ?? 0;
+      return ApiSuccess(remain);
     } on DioException catch (e) {
       return ApiFailure(e.response?.data?['message']?.toString() ?? '쿼터 조회 실패');
     }
